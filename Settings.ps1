@@ -1,6 +1,6 @@
 #requires -Version 5.1
 <#
-    RANK1 INSTALLER v1.0
+    SettingsPowerstore v1.0
     Single-file PowerShell Console Installer UI
 
     Compatible:
@@ -9,7 +9,7 @@
       - Windows 10/11
       - ConHost / Windows Terminal
 
-    Save this file as UTF-8 with BOM.
+    Save as UTF-8 with BOM.
 #>
 
 #region =========================================================
@@ -17,53 +17,53 @@
 #endregion =========================================================
 
 $Config = @{
-    Title              = "RANK1 INSTALLER"
-    Version            = "v1.0"
+    Title          = "RANK1 INSTALLER"
+    Version        = "v1.1"
 
-    Width              = 90
-    Height             = 32
+    Width          = 90
+    Height         = 32
 
-    Purple             = @(124, 58, 237)    # #7C3AED
-    Cyan               = @(6, 182, 212)     # #06B6D4
-    Green              = @(34, 197, 94)
-    Red                = @(239, 68, 68)
-    Yellow             = @(250, 204, 21)
+    Purple         = @(124, 58, 237)   # #7C3AED
+    Cyan           = @(6, 182, 212)    # #06B6D4
+    Green          = @(34, 197, 94)
+    Red            = @(239, 68, 68)
+    Yellow         = @(250, 204, 21)
 
-    White              = @(235, 235, 245)
-    Gray               = @(145, 145, 160)
-    DarkGray           = @(65, 65, 78)
+    White          = @(235, 235, 245)
+    Gray           = @(145, 145, 160)
+    DarkGray       = @(65, 65, 78)
+    Black          = @(0, 0, 0)
 
-    BootDelay          = 120
-    RevealDelay        = 70
-    FrameDelay         = 66       # ~15 FPS
-    SpinnerDelay       = 80
-    FlashDelay          = 70
-    PulseDelay          = 150
-    FadeDelay           = 35
+    BootDelay      = 120
+    RevealDelay    = 70
+    FrameDelay     = 66
+    SpinnerDelay   = 80
+    FlashDelay     = 90
+    PulseDelay     = 150
+    FadeDelay      = 45
 
-    BannerWaveSpeed     = 0.12
+    BannerWaveStep = 0.018
+    ProgressWidth  = 50
 
-    ProgressWidth       = 50
+    FontName       = "Cascadia Mono"
+    FontFallback   = "Consolas"
+    FontSize       = 18
 
-    FontName            = "Cascadia Mono"
-    FontFallback        = "Consolas"
-    FontSize            = 18
+    FooterText     = "â†‘â†“ navigate   ENTER select   ESC exit"
 
-    FooterText          = "↑↓ navigate   ENTER select   ESC exit"
-
-    MenuItems           = @(
+    MenuItems      = @(
         "INSTALL"
         "UNINSTALL"
         "EXIT"
     )
 
-    BootLines           = @(
+    BootLines      = @(
         "[ OK ] Loading modules..."
         "[ OK ] Checking permissions..."
         "[ OK ] Ready."
     )
 
-    InstallSteps        = @(
+    InstallSteps   = @(
         "Initializing installer..."
         "Copying files..."
         "Writing configuration..."
@@ -71,13 +71,16 @@ $Config = @{
         "Finalizing installation..."
     )
 
-    UninstallSteps      = @(
+    UninstallSteps = @(
         "Preparing uninstall..."
         "Removing files..."
         "Removing configuration..."
         "Unregistering components..."
         "Finalizing removal..."
     )
+
+    # Used only when the script is launched with irm | iex.
+    ScriptUrl      = "https://raw.githubusercontent.com/minatchanam-jpg/Settings.ps1/main/Settings.ps1"
 }
 
 $e = [char]27
@@ -100,15 +103,11 @@ function Invoke-Install {
     # TODO: PUT YOUR REAL INSTALL CODE HERE
     # =========================================================
 
-    $steps = $Config.InstallSteps
-
     $progress = @(10, 40, 62, 82, 100)
 
-    for ($i = 0; $i -lt $steps.Count; $i++) {
+    for ($i = 0; $i -lt $Config.InstallSteps.Count; $i++) {
         Start-Sleep -Milliseconds 500
-
-        # Report current step + progress to UI
-        & $Report $steps[$i] $progress[$i]
+        & $Report $Config.InstallSteps[$i] $progress[$i]
     }
 
     return $true
@@ -124,15 +123,11 @@ function Invoke-Uninstall {
     # TODO: PUT YOUR REAL UNINSTALL CODE HERE
     # =========================================================
 
-    $steps = $Config.UninstallSteps
-
     $progress = @(10, 40, 62, 82, 100)
 
-    for ($i = 0; $i -lt $steps.Count; $i++) {
+    for ($i = 0; $i -lt $Config.UninstallSteps.Count; $i++) {
         Start-Sleep -Milliseconds 500
-
-        # Report current step + progress to UI
-        & $Report $steps[$i] $progress[$i]
+        & $Report $Config.UninstallSteps[$i] $progress[$i]
     }
 
     return $true
@@ -147,21 +142,21 @@ function Invoke-Uninstall {
 
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 
-$Host.UI.RawUI.BackgroundColor = "Black"
-$Host.UI.RawUI.ForegroundColor = "White"
+try {
+    [Console]::Title = $Config.Title
+} catch {}
 
 try {
-    $Host.UI.RawUI.WindowTitle = $Config.Title
-}
-catch {}
+    $Host.UI.RawUI.BackgroundColor = "Black"
+    $Host.UI.RawUI.ForegroundColor = "White"
+} catch {}
 
 # -------------------------------------------------------------
-# Enable ANSI / VT processing on classic Windows console
+# Enable ANSI / VT processing on classic Windows console.
 # -------------------------------------------------------------
 
 try {
     if (-not ("Rank1.NativeConsole" -as [type])) {
-
         Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -215,16 +210,10 @@ namespace Rank1
 }
 "@
     }
-}
-catch {}
-
-# -------------------------------------------------------------
-# Enable VT
-# -------------------------------------------------------------
+} catch {}
 
 try {
     $stdout = [Rank1.NativeConsole]::GetStdHandle(-11)
-
     [uint32]$mode = 0
 
     if ([Rank1.NativeConsole]::GetConsoleMode($stdout, [ref]$mode)) {
@@ -233,40 +222,30 @@ try {
             ($mode -bor 0x0004)
         )
     }
-}
-catch {}
+} catch {}
 
 # -------------------------------------------------------------
-# Detect Windows Terminal
+# Detect Windows Terminal.
 # -------------------------------------------------------------
 
-$IsWindowsTerminal = $false
-
-if ($env:WT_SESSION) {
-    $IsWindowsTerminal = $true
-}
+$IsWindowsTerminal = [bool]$env:WT_SESSION
 
 # -------------------------------------------------------------
-# Console Font
-# Skip in Windows Terminal.
+# Set console font in classic ConHost only.
 # -------------------------------------------------------------
 
 if (-not $IsWindowsTerminal) {
     try {
         $stdout = [Rank1.NativeConsole]::GetStdHandle(-11)
-
         $font = New-Object Rank1.NativeConsole+CONSOLE_FONT_INFOEX
 
         $font.cbSize = [Runtime.InteropServices.Marshal]::SizeOf(
             [type]$font
         )
-
         $font.nFont = 0
         $font.dwFontSize = New-Object Rank1.NativeConsole+COORD
-
         $font.dwFontSize.X = 0
         $font.dwFontSize.Y = [int16]$Config.FontSize
-
         $font.FontFamily = 54
         $font.FontWeight = 400
         $font.FaceName = $Config.FontName
@@ -278,61 +257,47 @@ if (-not $IsWindowsTerminal) {
         )
 
         if (-not $ok) {
-
             $font.FaceName = $Config.FontFallback
-
             [void][Rank1.NativeConsole]::SetCurrentConsoleFontEx(
                 $stdout,
                 $false,
                 [ref]$font
             )
         }
-    }
-    catch {
-        # Ignore font errors.
-    }
+    } catch {}
 }
 
 # -------------------------------------------------------------
-# Console dimensions
+# Set window/buffer size where the host permits it.
+# Windows Terminal normally controls its own dimensions.
 # -------------------------------------------------------------
 
-try {
-    $raw = $Host.UI.RawUI
+if (-not $IsWindowsTerminal) {
+    try {
+        $raw = $Host.UI.RawUI
 
-    $buffer = $raw.BufferSize
+        $max = $raw.MaxPhysicalWindowSize
 
-    if ($buffer.Width -lt $Config.Width) {
-        $buffer.Width = $Config.Width
-    }
+        $targetW = [Math]::Min($Config.Width,  $max.Width)
+        $targetH = [Math]::Min($Config.Height, $max.Height)
 
-    if ($buffer.Height -lt $Config.Height) {
-        $buffer.Height = $Config.Height
-    }
+        $buffer = $raw.BufferSize
+        $buffer.Width  = [Math]::Max($buffer.Width,  $targetW)
+        $buffer.Height = [Math]::Max($buffer.Height, $targetH)
+        $raw.BufferSize = $buffer
 
-    $raw.BufferSize = $buffer
-
-    $window = $raw.WindowSize
-    $window.Width = [Math]::Min(
-        $Config.Width,
-        $raw.MaxPhysicalWindowSize.Width
-    )
-    $window.Height = [Math]::Min(
-        $Config.Height,
-        $raw.MaxPhysicalWindowSize.Height
-    )
-
-    $raw.WindowSize = $window
-}
-catch {
-    # Some terminals manage their own size.
+        $window = $raw.WindowSize
+        $window.Width  = $targetW
+        $window.Height = $targetH
+        $raw.WindowSize = $window
+    } catch {}
 }
 
 #endregion
 
 
 #region =========================================================
-# Helper Functions
+# Draw Helpers
 #endregion
 
 function Clamp {
@@ -344,7 +309,6 @@ function Clamp {
 
     if ($Value -lt $Min) { return $Min }
     if ($Value -gt $Max) { return $Max }
-
     return $Value
 }
 
@@ -368,35 +332,8 @@ function BgRgbEscape {
     return "$e[48;2;${R};${G};${B}m"
 }
 
-function Write-At {
-    param(
-        [int]$X,
-        [int]$Y,
-        [string]$Text,
-        [string]$Color = $null,
-        [switch]$NoReset
-    )
-
-    if ($X -lt 0 -or $Y -lt 0) {
-        return
-    }
-
-    try {
-        [Console]::SetCursorPosition($X, $Y)
-    }
-    catch {
-        return
-    }
-
-    if ($Color) {
-        [Console]::Write($Color)
-    }
-
-    [Console]::Write($Text)
-
-    if (-not $NoReset) {
-        [Console]::Write("$e[0m")
-    }
+function Reset-Terminal {
+    [Console]::Write("$e[0m")
 }
 
 function Get-GradientColor {
@@ -407,8 +344,11 @@ function Get-GradientColor {
 
     $t = $T + $Wave
 
-    while ($t -gt 1) { $t -= 1 }
-    while ($t -lt 0) { $t += 1 }
+    while ($t -ge 1) { $t -= 1 }
+    while ($t -lt 0)  { $t += 1 }
+
+    # Smooth wave instead of hard wrapping.
+    $t = (1 - [Math]::Cos($t * [Math]::PI * 2)) / 2
 
     $p = $Config.Purple
     $c = $Config.Cyan
@@ -420,6 +360,64 @@ function Get-GradientColor {
     return @($r, $g, $b)
 }
 
+function Get-VisibleLength {
+    param([string]$Text)
+
+    # The UI text is intentionally kept to single-width Unicode
+    # console glyphs. This function exists so layout is centralized.
+    return $Text.Length
+}
+
+function Center-X {
+    param([string]$Text)
+
+    $x = [int](($Config.Width - (Get-VisibleLength $Text)) / 2)
+
+    if ($x -lt 0) { return 0 }
+    return $x
+}
+
+function Write-At {
+    param(
+        [int]$X,
+        [int]$Y,
+        [string]$Text,
+        [string]$Color = $null,
+        [string]$Background = $null
+    )
+
+    if ($X -lt 0 -or $Y -lt 0 -or $Y -ge $Config.Height) {
+        return
+    }
+
+    if ($X -ge $Config.Width) {
+        return
+    }
+
+    $available = $Config.Width - $X
+
+    if ($Text.Length -gt $available) {
+        $Text = $Text.Substring(0, $available)
+    }
+
+    try {
+        [Console]::SetCursorPosition($X, $Y)
+    } catch {
+        return
+    }
+
+    if ($Background) {
+        [Console]::Write($Background)
+    }
+
+    if ($Color) {
+        [Console]::Write($Color)
+    }
+
+    [Console]::Write($Text)
+    [Console]::Write("$e[0m")
+}
+
 function Write-Gradient {
     param(
         [int]$X,
@@ -428,28 +426,25 @@ function Write-Gradient {
         [double]$Wave = 0
     )
 
+    if ($X -lt 0) { $X = 0 }
+    if ($Y -lt 0 -or $Y -ge $Config.Height) { return }
+    if ($X -ge $Config.Width) { return }
+
+    $max = [Math]::Min(
+        $Text.Length,
+        ($Config.Width - $X)
+    )
+
+    if ($max -le 0) { return }
+
     try {
         [Console]::SetCursorPosition($X, $Y)
-    }
-    catch {
+    } catch {
         return
     }
 
-    $length = $Text.Length
-
-    if ($length -le 0) {
-        return
-    }
-
-    for ($i = 0; $i -lt $length; $i++) {
-
-        $t = if ($length -eq 1) {
-            0
-        }
-        else {
-            $i / ($length - 1)
-        }
-
+    for ($i = 0; $i -lt $max; $i++) {
+        $t = if ($max -eq 1) { 0 } else { $i / ($max - 1) }
         $rgb = Get-GradientColor $t $Wave
 
         [Console]::Write(
@@ -469,6 +464,8 @@ function Draw-Box {
         [string]$BorderColor = $null
     )
 
+    if ($Width -lt 3 -or $Height -lt 3) { return }
+
     if (-not $BorderColor) {
         $BorderColor = RgbEscape `
             $Config.Purple[0] `
@@ -476,23 +473,37 @@ function Draw-Box {
             $Config.Purple[2]
     }
 
-    $top    = "╭" + ("─" * ($Width - 2)) + "╮"
-    $bottom = "╰" + ("─" * ($Width - 2)) + "╯"
+    $top    = "â•­" + ("â”€" * ($Width - 2)) + "â•®"
+    $bottom = "â•°" + ("â”€" * ($Width - 2)) + "â•¯"
 
     Write-At $X $Y $top $BorderColor
 
     for ($i = 1; $i -lt ($Height - 1); $i++) {
-
-        Write-At $X $($Y + $i) "│" $BorderColor
-
-        Write-At `
-            ($X + $Width - 1) `
-            ($Y + $i) `
-            "│" `
-            $BorderColor
+        Write-At $X ($Y + $i) "â”‚" $BorderColor
+        Write-At ($X + $Width - 1) ($Y + $i) "â”‚" $BorderColor
     }
 
     Write-At $X ($Y + $Height - 1) $bottom $BorderColor
+}
+
+function Clear-Canvas {
+    # IMPORTANT:
+    # Do not use Clear-Host and do not rely on ESC[2J for frames.
+    # Use cursor positioning + Erase Line (EL) instead. This avoids
+    # wrapping/scrolling when a row reaches the right edge and prevents
+    # old PowerShell prompt/output from showing through.
+    for ($y = 0; $y -lt $Config.Height; $y++) {
+        try {
+            [Console]::SetCursorPosition(0, $y)
+            [Console]::Write("$e[2K")
+        } catch {}
+    }
+
+    try {
+        [Console]::SetCursorPosition(0, 0)
+    } catch {}
+
+    Reset-Terminal
 }
 
 function Draw-Progress {
@@ -510,52 +521,45 @@ function Draw-Progress {
 
     $empty = $Config.ProgressWidth - $filled
 
-    Write-At `
-        $X `
-        $Y `
-        "[" `
-        (RgbEscape $Config.Gray[0] $Config.Gray[1] $Config.Gray[2])
+    Write-At $X $Y "[" (
+        RgbEscape `
+            $Config.Gray[0] `
+            $Config.Gray[1] `
+            $Config.Gray[2]
+    )
 
     if ($filled -gt 0) {
-
-        $fill = "█" * $filled
-
+        $fill = "â–ˆ" * $filled
         Write-Gradient `
             ($X + 1) `
             $Y `
             $fill `
-            (($Percent / 100) * 0.5)
+            (($Percent / 100) * 0.35)
     }
 
     if ($empty -gt 0) {
-
         Write-At `
             ($X + 1 + $filled) `
             $Y `
-            ("░" * $empty) `
-            (RgbEscape $Config.DarkGray[0] $Config.DarkGray[1] $Config.DarkGray[2])
+            ("â–‘" * $empty) `
+            (
+                RgbEscape `
+                    $Config.DarkGray[0] `
+                    $Config.DarkGray[1] `
+                    $Config.DarkGray[2]
+            )
     }
 
     Write-At `
         ($X + 1 + $Config.ProgressWidth) `
         $Y `
-        "] $($Percent.ToString().PadLeft(3))%" `
-        (RgbEscape $Config.White[0] $Config.White[1] $Config.White[2])
-}
-
-function Center-X {
-    param([string]$Text)
-
-    return [int](($Config.Width - $Text.Length) / 2)
-}
-
-function Blank-Line {
-    param([int]$Y)
-
-    Write-At `
-        0 `
-        $Y `
-        (" " * $Config.Width)
+        ("] $($Percent.ToString().PadLeft(3))%") `
+        (
+            RgbEscape `
+                $Config.White[0] `
+                $Config.White[1] `
+                $Config.White[2]
+        )
 }
 
 #endregion
@@ -566,42 +570,33 @@ function Blank-Line {
 #endregion
 
 function Test-IsAdministrator {
-
     try {
         $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-
         $principal = New-Object Security.Principal.WindowsPrincipal($identity)
 
         return $principal.IsInRole(
             [Security.Principal.WindowsBuiltInRole]::Administrator
         )
-    }
-    catch {
+    } catch {
         return $false
     }
 }
 
-$IsAdmin = Test-IsAdministrator
-
 function Get-OSName {
-
     try {
         $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
-
         return $os.Caption
-    }
-    catch {
-
+    } catch {
         try {
             return [Environment]::OSVersion.VersionString
-        }
-        catch {
+        } catch {
             return "Windows"
         }
     }
 }
 
-$OSName = Get-OSName
+$IsAdmin  = Test-IsAdministrator
+$OSName   = Get-OSName
 $UserName = [Environment]::UserName
 
 #endregion
@@ -612,47 +607,39 @@ $UserName = [Environment]::UserName
 #endregion
 
 $Banner = @(
-"▄▄▄▄▄▄▄ ▄▄▄▄▄▄▄ ▄     ▄ ▄▄▄▄▄▄▄ ▄▄▄▄▄▄   ▄▄▄▄▄▄▄ ▄▄▄▄▄▄▄ ▄▄▄▄▄▄▄ ▄▄▄▄▄▄   ▄▄▄▄▄▄▄"
-"█       █       █ █ ▄ █ █       █   ▄  █ █       █       █       █   ▄  █ █       █"
-"█    ▄  █   ▄   █ ██ ██ █    ▄▄▄█  █ █ █ █  ▄▄▄▄▄█▄     ▄█   ▄   █  █ █ █ █    ▄▄▄█"
-"█   █▄█ █  █ █  █       █   █▄▄▄█   █▄▄█▄█ █▄▄▄▄▄  █   █ █  █ █  █   █▄▄█▄█   █▄▄▄"
-"█    ▄▄▄█  █▄█  █       █    ▄▄▄█    ▄▄  █▄▄▄▄▄  █ █   █ █  █▄█  █    ▄▄  █    ▄▄▄█"
-"█   █   █       █   ▄   █   █▄▄▄█   █  █ █▄▄▄▄▄█ █ █   █ █       █   █  █ █   █▄▄▄"
-"█▄▄▄█   █▄▄▄▄▄▄▄█▄▄█ █▄▄█▄▄▄▄▄▄▄█▄▄▄█  █▄█▄▄▄▄▄▄▄█ █▄▄▄█ █▄▄▄▄▄▄▄█▄▄▄█  █▄█▄▄▄▄▄▄▄█"
+"â–„â–„â–„â–„â–„â–„â–„ â–„â–„â–„â–„â–„â–„â–„ â–„     â–„ â–„â–„â–„â–„â–„â–„â–„ â–„â–„â–„â–„â–„â–„   â–„â–„â–„â–„â–„â–„â–„ â–„â–„â–„â–„â–„â–„â–„ â–„â–„â–„â–„â–„â–„â–„ â–„â–„â–„â–„â–„â–„   â–„â–„â–„â–„â–„â–„â–„"
+"â–ˆ       â–ˆ       â–ˆ â–ˆ â–„ â–ˆ â–ˆ       â–ˆ   â–„  â–ˆ â–ˆ       â–ˆ       â–ˆ       â–ˆ   â–„  â–ˆ â–ˆ       â–ˆ"
+"â–ˆ    â–„  â–ˆ   â–„   â–ˆ â–ˆâ–ˆ â–ˆâ–ˆ â–ˆ    â–„â–„â–„â–ˆ  â–ˆ â–ˆ â–ˆ â–ˆ  â–„â–„â–„â–„â–„â–ˆâ–„     â–„â–ˆ   â–„   â–ˆ  â–ˆ â–ˆ â–ˆ â–ˆ    â–„â–„â–„â–ˆ"
+"â–ˆ   â–ˆâ–„â–ˆ â–ˆ  â–ˆ â–ˆ  â–ˆ       â–ˆ   â–ˆâ–„â–„â–„â–ˆ   â–ˆâ–„â–„â–ˆâ–„â–ˆ â–ˆâ–„â–„â–„â–„â–„  â–ˆ   â–ˆ â–ˆ  â–ˆ â–ˆ  â–ˆ   â–ˆâ–„â–„â–ˆâ–„â–ˆ   â–ˆâ–„â–„â–„"
+"â–ˆ    â–„â–„â–„â–ˆ  â–ˆâ–„â–ˆ  â–ˆ       â–ˆ    â–„â–„â–„â–ˆ    â–„â–„  â–ˆâ–„â–„â–„â–„â–„  â–ˆ â–ˆ   â–ˆ â–ˆ  â–ˆâ–„â–ˆ  â–ˆ    â–„â–„  â–ˆ    â–„â–„â–„â–ˆ"
+"â–ˆ   â–ˆ   â–ˆ       â–ˆ   â–„   â–ˆ   â–ˆâ–„â–„â–„â–ˆ   â–ˆ  â–ˆ â–ˆâ–„â–„â–„â–„â–„â–ˆ â–ˆ â–ˆ   â–ˆ â–ˆ       â–ˆ   â–ˆ  â–ˆ â–ˆ   â–ˆâ–„â–„â–„"
+"â–ˆâ–„â–„â–„â–ˆ   â–ˆâ–„â–„â–„â–„â–„â–„â–„â–ˆâ–„â–„â–ˆ â–ˆâ–„â–„â–ˆâ–„â–„â–„â–„â–„â–„â–„â–ˆâ–„â–„â–„â–ˆ  â–ˆâ–„â–ˆâ–„â–„â–„â–„â–„â–„â–„â–ˆ â–ˆâ–„â–„â–„â–ˆ â–ˆâ–„â–„â–„â–„â–„â–„â–„â–ˆâ–„â–„â–„â–ˆ  â–ˆâ–„â–ˆâ–„â–„â–„â–„â–„â–„â–„â–ˆ"
 )
 
 function Draw-Banner {
-    param(
-        [double]$Wave = 0
-    )
+    param([double]$Wave = 0)
 
-    $startY = 2
+    # Banner occupies rows 1-7. Subtitle is row 9.
+    $startY = 1
 
     for ($i = 0; $i -lt $Banner.Count; $i++) {
-
         $line = $Banner[$i]
-
         $x = Center-X $line
-
-        Write-Gradient `
-            $x `
-            ($startY + $i) `
-            $line `
-            $Wave
+        Write-Gradient $x ($startY + $i) $line $Wave
     }
 
     $sub = "I N S T A L L E R   $($Config.Version)"
-
-    $subColor = RgbEscape `
-        $Config.Gray[0] `
-        $Config.Gray[1] `
-        $Config.Gray[2]
 
     Write-At `
         (Center-X $sub) `
         9 `
         $sub `
-        $subColor
+        (
+            RgbEscape `
+                $Config.Gray[0] `
+                $Config.Gray[1] `
+                $Config.Gray[2]
+        )
 }
 
 #endregion
@@ -663,9 +650,7 @@ function Draw-Banner {
 #endregion
 
 function Invoke-Boot {
-
-    # Clear screen once at startup.
-    [Console]::Write("$e[2J$e[H")
+    Clear-Canvas
 
     $green = RgbEscape `
         $Config.Green[0] `
@@ -673,52 +658,43 @@ function Invoke-Boot {
         $Config.Green[2]
 
     for ($i = 0; $i -lt $Config.BootLines.Count; $i++) {
-
-        $line = $Config.BootLines[$i]
-
-        Write-At `
-            3 `
-            (4 + $i) `
-            $line `
-            $green
-
+        Write-At 3 (4 + $i) $Config.BootLines[$i] $green
         Start-Sleep -Milliseconds $Config.BootDelay
     }
 
-    Start-Sleep -Milliseconds 250
+    Start-Sleep -Milliseconds 200
 
-    # Reveal banner line-by-line.
     for ($i = 0; $i -lt $Banner.Count; $i++) {
-
-        $y = 2 + $i
+        $y = 1 + $i
         $line = $Banner[$i]
         $x = Center-X $line
 
-        # Glitch characters.
-        $glitchChars = "░▒▓"
+        $glitchChars = @("â–‘", "â–’", "â–“")
 
         for ($g = 0; $g -lt 2; $g++) {
-
             $glitch = ""
 
             for ($c = 0; $c -lt $line.Length; $c++) {
                 $glitch += $glitchChars[
-                    (Get-Random -Minimum 0 -Maximum $glitchChars.Length)
+                    (Get-Random -Minimum 0 -Maximum $glitchChars.Count)
                 ]
             }
 
-            $glitchColor = RgbEscape `
-                $Config.Purple[0] `
-                $Config.Purple[1] `
-                $Config.Purple[2]
-
-            Write-At $x $y $glitch $glitchColor
+            Write-At `
+                $x `
+                $y `
+                $glitch `
+                (
+                    RgbEscape `
+                        $Config.Purple[0] `
+                        $Config.Purple[1] `
+                        $Config.Purple[2]
+                )
 
             Start-Sleep -Milliseconds 25
         }
 
         Write-Gradient $x $y $line 0
-
         Start-Sleep -Milliseconds $Config.RevealDelay
     }
 
@@ -728,12 +704,14 @@ function Invoke-Boot {
         (Center-X $sub) `
         9 `
         $sub `
-        (RgbEscape `
-            $Config.Gray[0] `
-            $Config.Gray[1] `
-            $Config.Gray[2])
+        (
+            RgbEscape `
+                $Config.Gray[0] `
+                $Config.Gray[1] `
+                $Config.Gray[2]
+        )
 
-    Start-Sleep -Milliseconds 300
+    Start-Sleep -Milliseconds 250
 }
 
 #endregion
@@ -744,13 +722,14 @@ function Invoke-Boot {
 #endregion
 
 function Draw-AdminWarning {
-
     if ($IsAdmin) {
-        return
+        return $false
     }
 
+    Clear-Canvas
+
     $x = 7
-    $y = 12
+    $y = 11
     $w = $Config.Width - 14
 
     $yellow = RgbEscape `
@@ -758,7 +737,7 @@ function Draw-AdminWarning {
         $Config.Yellow[1] `
         $Config.Yellow[2]
 
-    Draw-Box $x $y $w 5 $yellow
+    Draw-Box $x $y $w 7 $yellow
 
     $msg = "WARNING: Administrator privileges are recommended."
 
@@ -772,14 +751,12 @@ function Draw-AdminWarning {
 
     Write-At `
         (Center-X $question) `
-        ($y + 3) `
+        ($y + 4) `
         $question `
         $yellow
 
     while ($true) {
-
         if ([Console]::KeyAvailable) {
-
             $key = [Console]::ReadKey($true)
 
             if ($key.Key -eq [ConsoleKey]::Y) {
@@ -789,6 +766,10 @@ function Draw-AdminWarning {
             if ($key.Key -eq [ConsoleKey]::N) {
                 return $false
             }
+
+            if ($key.Key -eq [ConsoleKey]::Escape) {
+                return $false
+            }
         }
 
         Start-Sleep -Milliseconds 30
@@ -796,39 +777,38 @@ function Draw-AdminWarning {
 }
 
 function Restart-AsAdministrator {
-
     try {
+        # When launched with irm | iex there is no local script path.
+        # Re-run the remote command elevated in that case.
+        $scriptPath = $PSCommandPath
 
-        $scriptPath = $MyInvocation.ScriptName
+        if ($scriptPath -and (Test-Path -LiteralPath $scriptPath)) {
+            $powershellExe = (Get-Process -Id $PID).Path
 
-        if (-not $scriptPath) {
-            $scriptPath = $PSCommandPath
+            if (-not $powershellExe) {
+                $powershellExe = "powershell.exe"
+            }
+
+            $arg = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+
+            Start-Process `
+                -FilePath $powershellExe `
+                -ArgumentList $arg `
+                -Verb RunAs
+
+            return $true
         }
 
-        if (-not $scriptPath) {
-            return $false
-        }
+        $command = "irm '$($Config.ScriptUrl)' | iex"
+        $powershellExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
 
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-
-        $psi.FileName = (Get-Process -Id $PID).Path
-
-        if (-not $psi.FileName) {
-            $psi.FileName = "powershell.exe"
-        }
-
-        $escaped = '"' + $scriptPath.Replace('"', '\"') + '"'
-
-        $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -File $escaped"
-
-        $psi.Verb = "runas"
-        $psi.UseShellExecute = $true
-
-        [void][Diagnostics.Process]::Start($psi)
+        Start-Process `
+            -FilePath $powershellExe `
+            -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$command`"" `
+            -Verb RunAs
 
         return $true
-    }
-    catch {
+    } catch {
         return $false
     }
 }
@@ -846,38 +826,36 @@ function Draw-Menu {
         [double]$Wave
     )
 
-    $boxX = 19
+    # All menu elements are placed in one fixed region.
+    $boxX = 18
     $boxY = 11
-    $boxW = 52
+    $boxW = 54
     $boxH = 7
 
     Draw-Box $boxX $boxY $boxW $boxH
 
     for ($i = 0; $i -lt $Config.MenuItems.Count; $i++) {
-
         $item = $Config.MenuItems[$i]
-
         $y = $boxY + 1 + $i
+        $rowWidth = $boxW - 2
 
-        # Clear menu row.
+        # Always erase the complete row before drawing it.
         Write-At `
             ($boxX + 1) `
             $y `
-            (" " * ($boxW - 2))
+            (" " * $rowWidth) `
+            $null
 
         if ($i -eq $Selected) {
-
             $rgb = Get-GradientColor `
                 (($i + 1) / $Config.MenuItems.Count) `
                 $Wave
 
             $bg = BgRgbEscape $rgb[0] $rgb[1] $rgb[2]
-
             $fg = "$e[38;2;255;255;255m"
 
-            $text = "▶  $item"
-
-            $padding = $boxW - 2 - $text.Length
+            $text = "â–¶  $item"
+            $padding = $rowWidth - $text.Length
 
             if ($padding -lt 0) {
                 $padding = 0
@@ -887,65 +865,44 @@ function Draw-Menu {
                 ($boxX + 1) `
                 $y `
                 ($text + (" " * $padding)) `
-                ($bg + $fg)
-        }
-        else {
-
+                $fg `
+                $bg
+        } else {
             $gray = RgbEscape `
                 $Config.Gray[0] `
                 $Config.Gray[1] `
                 $Config.Gray[2]
 
-            $text = "   $item"
-
             Write-At `
                 ($boxX + 1) `
                 $y `
-                $text `
+                ("   " + $item) `
                 $gray
         }
     }
 
-    # Info line
+    # Info line.
     $adminText = if ($IsAdmin) { "YES" } else { "NO" }
-
     $info = "OS: $OSName  |  User: $UserName  |  Admin: $adminText"
 
+    $infoX = Center-X $info
+
+    $gray = RgbEscape `
+        $Config.Gray[0] `
+        $Config.Gray[1] `
+        $Config.Gray[2]
+
     if ($IsAdmin) {
-
-        $infoColor = RgbEscape `
-            $Config.Gray[0] `
-            $Config.Gray[1] `
-            $Config.Gray[2]
-
-        Write-At `
-            (Center-X $info) `
-            19 `
-            $info `
-            $infoColor
-    }
-    else {
-
-        # Draw pieces so NO can be yellow.
+        Write-At $infoX 19 $info $gray
+    } else {
         $prefix = "OS: $OSName  |  User: $UserName  |  Admin: "
-
-        $prefixColor = RgbEscape `
-            $Config.Gray[0] `
-            $Config.Gray[1] `
-            $Config.Gray[2]
-
         $yellow = RgbEscape `
             $Config.Yellow[0] `
             $Config.Yellow[1] `
             $Config.Yellow[2]
 
-        $totalLength = $prefix.Length + 2
-
-        $x = Center-X ("OS: $OSName  |  User: $UserName  |  Admin: NO")
-
-        Write-At $x 19 $prefix $prefixColor
-
-        Write-At ($x + $prefix.Length) 19 "NO" $yellow
+        Write-At $infoX 19 $prefix $gray
+        Write-At ($infoX + $prefix.Length) 19 "NO" $yellow
     }
 
     $footerColor = RgbEscape `
@@ -968,33 +925,25 @@ function Draw-Menu {
 #endregion
 
 function Invoke-Menu {
+    param([int]$StartSelection = 0)
 
-    $selected = 0
+    $selected = $StartSelection
     $wave = 0.0
 
     while ($true) {
-
+        # Clear only once per complete frame.
+        Clear-Canvas
         Draw-Banner $wave
         Draw-Menu $selected $wave
 
-        $wave += $Config.BannerWaveSpeed
-
-        while ($wave -gt 1) {
-            $wave -= 1
-        }
-
-        # -----------------------------------------------------
-        # Non-blocking keyboard handling
-        # -----------------------------------------------------
+        $wave += $Config.BannerWaveStep
+        if ($wave -ge 1) { $wave -= 1 }
 
         if ([Console]::KeyAvailable) {
-
             $key = [Console]::ReadKey($true)
 
             switch ($key.Key) {
-
                 ([ConsoleKey]::UpArrow) {
-
                     $selected--
 
                     if ($selected -lt 0) {
@@ -1003,7 +952,6 @@ function Invoke-Menu {
                 }
 
                 ([ConsoleKey]::DownArrow) {
-
                     $selected++
 
                     if ($selected -ge $Config.MenuItems.Count) {
@@ -1016,12 +964,25 @@ function Invoke-Menu {
                 }
 
                 ([ConsoleKey]::Enter) {
+                    # Short selection flash.
+                    $rgb = Get-GradientColor `
+                        (($selected + 1) / $Config.MenuItems.Count) `
+                        $wave
 
-                    # Flash selected item.
-                    Draw-Menu $selected $wave
+                    $boxX = 18
+                    $boxY = 11
+                    $boxW = 54
+                    $rowY = $boxY + 1 + $selected
+                    $rowW = $boxW - 2
+
+                    Write-At `
+                        ($boxX + 1) `
+                        $rowY `
+                        (" " * $rowW) `
+                        $null `
+                        (BgRgbEscape $rgb[0] $rgb[1] $rgb[2])
 
                     Start-Sleep -Milliseconds $Config.FlashDelay
-
                     return $selected
                 }
             }
@@ -1039,13 +1000,12 @@ function Invoke-Menu {
 #endregion
 
 function Confirm-Uninstall {
+    Clear-Canvas
 
-    [Console]::Write("$e[2J$e[H")
-
-    $x = 12
-    $y = 11
     $w = 66
     $h = 7
+    $x = [int](($Config.Width - $w) / 2)
+    $y = 11
 
     $red = RgbEscape `
         $Config.Red[0] `
@@ -1054,7 +1014,8 @@ function Confirm-Uninstall {
 
     Draw-Box $x $y $w $h $red
 
-    $title = "⚠  UNINSTALL CONFIRMATION"
+    $title = "âš   UNINSTALL CONFIRMATION"
+    $question = "Are you sure? [Y/N]"
 
     Write-At `
         (Center-X $title) `
@@ -1062,18 +1023,14 @@ function Confirm-Uninstall {
         $title `
         $red
 
-    $question = "Are you sure? [Y/N]"
-
     Write-At `
         (Center-X $question) `
-        ($y + 3) `
+        ($y + 4) `
         $question `
         $red
 
     while ($true) {
-
         if ([Console]::KeyAvailable) {
-
             $key = [Console]::ReadKey($true)
 
             if ($key.Key -eq [ConsoleKey]::Y) {
@@ -1106,24 +1063,23 @@ function Invoke-WorkingScreen {
         [string]$Action
     )
 
-    [Console]::Write("$e[2J$e[H")
+    Clear-Canvas
 
     $title = if ($Action -eq "INSTALL") {
-        "INSTALLING Powerstore"
-    }
-    else {
-        "UNINSTALLING Powerstore"
+        "INSTALLING RANK1"
+    } else {
+        "UNINSTALLING RANK1"
     }
 
     Write-Gradient `
         (Center-X $title) `
-        4 `
+        3 `
         $title `
         0
 
     $spinnerFrames = @(
-        "⠋","⠙","⠹","⠸","⠼",
-        "⠴","⠦","⠧","⠇","⠏"
+        "â ‹","â ™","â ¹","â ¸","â ¼",
+        "â ´","â ¦","â §","â ‡","â "
     )
 
     $state = @{
@@ -1132,14 +1088,7 @@ function Invoke-WorkingScreen {
         LogLines = New-Object System.Collections.ArrayList
     }
 
-    $spinnerIndex = 0
-
-    # ---------------------------------------------------------
-    # Callback passed to Install / Uninstall
-    # ---------------------------------------------------------
-
     $Report = {
-
         param(
             [string]$Step,
             [int]$Percent
@@ -1148,139 +1097,96 @@ function Invoke-WorkingScreen {
         $state.Step = $Step
         $state.Percent = Clamp $Percent 0 100
 
-        [void]$state.LogLines.Add(
-            @{
-                Text = $Step
-                Percent = $state.Percent
-            }
-        )
-    }
+        [void]$state.LogLines.Add($Step)
 
-    try {
+        # Render immediately so the UI does not wait until the
+        # entire placeholder function has finished.
+        $spinner = $spinnerFrames[($state.LogLines.Count - 1) % $spinnerFrames.Count]
 
-        $workerResult = $null
-        $workerError = $null
+        $spinnerColor = Get-GradientColor `
+            ((($state.LogLines.Count - 1) % 10) / 10) `
+            0
 
-        try {
+        Write-At `
+            17 `
+            7 `
+            $spinner `
+            (RgbEscape `
+                $spinnerColor[0] `
+                $spinnerColor[1] `
+                $spinnerColor[2])
 
-            if ($Action -eq "INSTALL") {
-                $workerResult = Invoke-Install -Report $Report
-            }
-            else {
-                $workerResult = Invoke-Uninstall -Report $Report
-            }
-        }
-        catch {
-            $workerError = $_
-        }
+        Write-At `
+            21 `
+            7 `
+            (" " * 52) `
+            $null
 
-        # -----------------------------------------------------
-        # Render the final collected result
-        # -----------------------------------------------------
+        $stepColor = RgbEscape `
+            $Config.White[0] `
+            $Config.White[1] `
+            $Config.White[2]
 
-        for ($frame = 0; $frame -lt 5; $frame++) {
+        $shownStep = $Step
 
-            $spinner = $spinnerFrames[$spinnerIndex]
-
-            $spinnerColor = Get-GradientColor `
-                (($spinnerIndex % 10) / 10) `
-                0
-
-            Write-At `
-                18 `
-                7 `
-                $spinner `
-                (RgbEscape `
-                    $spinnerColor[0] `
-                    $spinnerColor[1] `
-                    $spinnerColor[2])
-
-            Write-At `
-                22 `
-                7 `
-                (" " * 52)
-
-            $stepColor = RgbEscape `
-                $Config.White[0] `
-                $Config.White[1] `
-                $Config.White[2]
-
-            Write-At `
-                22 `
-                7 `
-                $state.Step `
-                $stepColor
-
-            Draw-Progress 19 9 $state.Percent
-
-            $spinnerIndex++
-
-            if ($spinnerIndex -ge $spinnerFrames.Count) {
-                $spinnerIndex = 0
-            }
-
-            Start-Sleep -Milliseconds $Config.SpinnerDelay
+        if ($shownStep.Length -gt 50) {
+            $shownStep = $shownStep.Substring(0, 50)
         }
 
-        # -----------------------------------------------------
-        # Show logs
-        # -----------------------------------------------------
+        Write-At 21 7 $shownStep $stepColor
 
-        $logY = 12
+        Draw-Progress 18 9 $state.Percent
 
-        foreach ($entry in $state.LogLines) {
+        # Finished log line.
+        $logY = 12 + ($state.LogLines.Count - 1)
 
-            if ($logY -ge 25) {
-                break
-            }
-
-            $check = "✔"
-
+        if ($logY -lt 26) {
             $green = RgbEscape `
                 $Config.Green[0] `
                 $Config.Green[1] `
                 $Config.Green[2]
 
-            Write-At `
-                15 `
-                $logY `
-                $check `
-                $green
-
-            $logText = "  $($entry.Text)... done"
+            Write-At $Config.Width 0 "" $green
 
             Write-At `
-                17 `
+                16 `
                 $logY `
-                $logText `
+                "âœ”" `
                 $green
 
-            $logY++
+            Write-At `
+                19 `
+                $logY `
+                ("â†’ $Step... done") `
+                $green
+        }
+    }
+
+    try {
+        if ($Action -eq "INSTALL") {
+            $result = Invoke-Install -Report $Report
+        } else {
+            $result = Invoke-Uninstall -Report $Report
         }
 
-        if ($workerError) {
-            return @{
-                Success = $false
-                Error = $workerError.Exception.Message
-            }
-        }
+        # Keep the completed state visible briefly.
+        Start-Sleep -Milliseconds 250
 
-        if ($workerResult -eq $false) {
+        if ($result -eq $false) {
             return @{
                 Success = $false
-                Error = "The operation returned FALSE."
+                Error   = "The operation returned FALSE."
             }
         }
 
         return @{
             Success = $true
-            Error = $null
+            Error   = $null
         }
-    }
-    catch {
+    } catch {
         return @{
             Success = $false
-            Error = $_.Exception.Message
+            Error   = $_.Exception.Message
         }
     }
 }
@@ -1293,41 +1199,29 @@ function Invoke-WorkingScreen {
 #endregion
 
 function Show-Success {
-    param(
-        [string]$Action
-    )
-
-    [Console]::Write("$e[2J$e[H")
+    param([string]$Action)
 
     $text = if ($Action -eq "INSTALL") {
-        "✔ INSTALL COMPLETE"
-    }
-    else {
-        "✔ UNINSTALL COMPLETE"
+        "âœ” INSTALL COMPLETE"
+    } else {
+        "âœ” UNINSTALL COMPLETE"
     }
 
-    $boxX = 17
-    $boxY = 10
-    $boxW = 56
+    $boxW = 60
     $boxH = 8
+    $boxX = [int](($Config.Width - $boxW) / 2)
+    $boxY = 10
 
     for ($pulse = 0; $pulse -lt 3; $pulse++) {
+        Clear-Canvas
 
-        [Console]::Write("$e[2J$e[H")
-
-        if (($pulse % 2) -eq 0) {
-
-            $green = RgbEscape `
+        $green = if (($pulse % 2) -eq 0) {
+            RgbEscape `
                 $Config.Green[0] `
                 $Config.Green[1] `
                 $Config.Green[2]
-        }
-        else {
-
-            $green = RgbEscape `
-                16 `
-                100 `
-                45
+        } else {
+            RgbEscape 15 100 45
         }
 
         Draw-Box $boxX $boxY $boxW $boxH $green
@@ -1347,79 +1241,72 @@ function Show-Success {
         (Center-X $hint) `
         22 `
         $hint `
-        (RgbEscape `
-            $Config.DarkGray[0] `
-            $Config.DarkGray[1] `
-            $Config.DarkGray[2])
+        (
+            RgbEscape `
+                $Config.DarkGray[0] `
+                $Config.DarkGray[1] `
+                $Config.DarkGray[2]
+        )
 
     [void][Console]::ReadKey($true)
 }
 
 function Show-Error {
-    param(
-        [string]$ErrorMessage
-    )
+    param([string]$ErrorMessage)
 
-    for ($shake = 0; $shake -lt 5; $shake++) {
-
-        [Console]::Write("$e[2J$e[H")
-
-        $offset = if (($shake % 2) -eq 0) {
-            2
-        }
-        else {
-            -2
-        }
-
-        $x = 20 + $offset
-        $y = 10
-        $w = 50
-        $h = 8
-
-        $red = RgbEscape `
-            $Config.Red[0] `
-            $Config.Red[1] `
-            $Config.Red[2]
-
-        Draw-Box $x $y $w $h $red
-
-        $title = "✖ FAILED"
-
-        Write-At `
-            ($x + [int](($w - $title.Length) / 2)) `
-            ($y + 2) `
-            $title `
-            $red
-
-        Start-Sleep -Milliseconds 60
-    }
-
-    [Console]::Write("$e[2J$e[H")
+    $boxW = 58
+    $boxH = 10
+    $baseX = [int](($Config.Width - $boxW) / 2)
+    $y = 9
 
     $red = RgbEscape `
         $Config.Red[0] `
         $Config.Red[1] `
         $Config.Red[2]
 
-    Draw-Box 16 9 58 10 $red
+    for ($shake = 0; $shake -lt 6; $shake++) {
+        Clear-Canvas
 
-    $title = "✖ FAILED"
+        $offset = if (($shake % 2) -eq 0) { 2 } else { -2 }
+        $x = $baseX + $offset
+
+        Draw-Box $x $y $boxW $boxH $red
+
+        $title = "âœ– FAILED"
+
+        Write-At `
+            ($x + [int](($boxW - $title.Length) / 2)) `
+            ($y + 2) `
+            $title `
+            $red
+
+        Start-Sleep -Milliseconds 55
+    }
+
+    Clear-Canvas
+    Draw-Box $baseX $y $boxW $boxH $red
+
+    $title = "âœ– FAILED"
 
     Write-At `
         (Center-X $title) `
-        11 `
+        ($y + 2) `
         $title `
         $red
 
-    $errorText = $ErrorMessage
+    $errorText = if ($ErrorMessage) {
+        [string]$ErrorMessage
+    } else {
+        "Unknown error."
+    }
 
-    if ($errorText.Length -gt 48) {
-        $errorText = $errorText.Substring(0, 48)
+    if ($errorText.Length -gt 50) {
+        $errorText = $errorText.Substring(0, 47) + "..."
     }
 
     Write-At `
         (Center-X $errorText) `
-        14 `
+        ($y + 5) `
         $errorText `
         $red
 
@@ -1429,10 +1316,12 @@ function Show-Error {
         (Center-X $hint) `
         22 `
         $hint `
-        (RgbEscape `
-            $Config.DarkGray[0] `
-            $Config.DarkGray[1] `
-            $Config.DarkGray[2])
+        (
+            RgbEscape `
+                $Config.DarkGray[0] `
+                $Config.DarkGray[1] `
+                $Config.DarkGray[2]
+        )
 
     [void][Console]::ReadKey($true)
 }
@@ -1445,12 +1334,12 @@ function Show-Error {
 #endregion
 
 function Invoke-Exit {
+    Clear-Canvas
 
-    [Console]::Write("$e[2J$e[H")
+    $text = "RANK1"
 
     for ($fade = 5; $fade -ge 0; $fade--) {
-
-        [Console]::Write("$e[2J$e[H")
+        Clear-Canvas
 
         $factor = $fade / 5
 
@@ -1458,31 +1347,29 @@ function Invoke-Exit {
         $g = [int]($Config.Purple[1] * $factor)
         $b = [int]($Config.Purple[2] * $factor)
 
-        $color = RgbEscape $r $g $b
-
-        $text = "POWERSTORE"
-
         Write-At `
             (Center-X $text) `
             13 `
             $text `
-            $color
+            (RgbEscape $r $g $b)
 
         Start-Sleep -Milliseconds $Config.FadeDelay
     }
 
-    [Console]::Write("$e[2J$e[H")
+    Clear-Canvas
 
     Write-At `
         (Center-X "Goodbye.") `
         15 `
         "Goodbye." `
-        (RgbEscape `
-            $Config.Gray[0] `
-            $Config.Gray[1] `
-            $Config.Gray[2])
+        (
+            RgbEscape `
+                $Config.Gray[0] `
+                $Config.Gray[1] `
+                $Config.Gray[2]
+        )
 
-    Start-Sleep -Milliseconds 400
+    Start-Sleep -Milliseconds 450
 }
 
 #endregion
@@ -1492,102 +1379,78 @@ function Invoke-Exit {
 # Main
 #endregion
 
-# Hide cursor while application is running.
+# Hide cursor while the UI is running.
 [Console]::Write("$e[?25l")
 
 try {
-
-    # ---------------------------------------------------------
-    # Boot
-    # ---------------------------------------------------------
-
     Invoke-Boot
 
-    # ---------------------------------------------------------
-    # Admin warning
-    # ---------------------------------------------------------
-
     if (-not $IsAdmin) {
-
         $restart = Draw-AdminWarning
 
         if ($restart) {
-
             [Console]::Write("$e[?25h")
 
             if (Restart-AsAdministrator) {
-                return
+                exit
             }
-        }
 
-        # Redraw normal UI if user selected N.
-        [Console]::Write("$e[2J$e[H")
+            # If elevation failed/cancelled, continue normally.
+            [Console]::Write("$e[?25l")
+        }
     }
 
-    # ---------------------------------------------------------
-    # Main menu
-    # ---------------------------------------------------------
+    $selection = 0
 
     while ($true) {
+        $selection = Invoke-Menu $selection
 
-        $selection = Invoke-Menu
-
-        # ESC / EXIT
+        # ESC or EXIT.
         if ($selection -eq 2) {
             break
         }
 
-        # INSTALL
+        # INSTALL.
         if ($selection -eq 0) {
-
             $result = Invoke-WorkingScreen "INSTALL"
 
             if ($result.Success) {
                 Show-Success "INSTALL"
-            }
-            else {
+            } else {
                 Show-Error $result.Error
             }
         }
 
-        # UNINSTALL
-        elseif ($selection -eq 1) {
-
+        # UNINSTALL.
+        if ($selection -eq 1) {
             $confirmed = Confirm-Uninstall
 
             if ($confirmed) {
-
                 $result = Invoke-WorkingScreen "UNINSTALL"
 
                 if ($result.Success) {
                     Show-Success "UNINSTALL"
-                }
-                else {
+                } else {
                     Show-Error $result.Error
                 }
             }
-
-            [Console]::Write("$e[2J$e[H")
         }
     }
 
     Invoke-Exit
 }
 finally {
-
-    # Always restore cursor, even when Ctrl+C is pressed.
+    # Always restore cursor and terminal colors, including Ctrl+C.
     [Console]::Write("$e[?25h")
     [Console]::Write("$e[0m")
 
     try {
         [Console]::CursorVisible = $true
-    }
-    catch {}
+    } catch {}
 
     try {
         [Console]::ResetColor()
-    }
-    catch {}
+    } catch {}
 }
 
 #endregion
