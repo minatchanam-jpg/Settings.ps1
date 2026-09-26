@@ -49,7 +49,7 @@ $Config = @{
     FontFallback   = "Consolas"
     FontSize       = 18
 
-    FooterText     = "â†‘â†“ navigate   ENTER select   ESC exit"
+    FooterText     = "NAVIGATE   ENTER select   ESC exit"
 
     MenuItems      = @(
         "INSTALL"
@@ -84,6 +84,36 @@ $Config = @{
 }
 
 $e = [char]27
+
+# ASCII-safe character table. The source stays ASCII-only so "irm | iex"
+# works reliably in Windows PowerShell 5.1 even with legacy code pages.
+$C = @{
+    Up        = [char]0x2191
+    Down      = [char]0x2193
+    Arrow     = [char]0x25B6
+    Check     = [char]0x2714
+    Cross     = [char]0x2716
+    Warn      = [char]0x26A0
+    TL        = [char]0x256D
+    TR        = [char]0x256E
+    BL        = [char]0x2570
+    BR        = [char]0x256F
+    H         = [char]0x2500
+    V         = [char]0x2502
+    Full      = [char]0x2588
+    Light     = [char]0x2591
+    Spinner1  = [char]0x280B
+    Spinner2  = [char]0x2819
+    Spinner3  = [char]0x2839
+    Spinner4  = [char]0x2838
+    Spinner5  = [char]0x28FC
+    Spinner6  = [char]0x28F4
+    Spinner7  = [char]0x28E6
+    Spinner8  = [char]0x28E7
+    Spinner9  = [char]0x2847
+    Spinner10 = [char]0x284F
+}
+
 
 #endregion
 
@@ -157,58 +187,8 @@ try {
 
 try {
     if (-not ("Rank1.NativeConsole" -as [type])) {
-        Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-
-namespace Rank1
-{
-    public static class NativeConsole
-    {
-        [DllImport("kernel32.dll", SetLastError=true)]
-        public static extern IntPtr GetStdHandle(int nStdHandle);
-
-        [DllImport("kernel32.dll", SetLastError=true)]
-        public static extern bool GetConsoleMode(
-            IntPtr hConsoleHandle,
-            out uint lpMode
-        );
-
-        [DllImport("kernel32.dll", SetLastError=true)]
-        public static extern bool SetConsoleMode(
-            IntPtr hConsoleHandle,
-            uint dwMode
-        );
-
-        [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
-        public struct COORD
-        {
-            public short X;
-            public short Y;
-        }
-
-        [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
-        public struct CONSOLE_FONT_INFOEX
-        {
-            public uint cbSize;
-            public uint nFont;
-            public COORD dwFontSize;
-            public int FontFamily;
-            public int FontWeight;
-
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst=32)]
-            public string FaceName;
-        }
-
-        [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
-        public static extern bool SetCurrentConsoleFontEx(
-            IntPtr hConsoleOutput,
-            bool bMaximumWindow,
-            ref CONSOLE_FONT_INFOEX lpConsoleCurrentFontEx
-        );
-    }
-}
-"@
+        $csharp = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("dXNpbmcgU3lzdGVtOwp1c2luZyBTeXN0ZW0uUnVudGltZS5JbnRlcm9wU2VydmljZXM7CgpuYW1lc3BhY2UgUmFuazEKewogICAgcHVibGljIHN0YXRpYyBjbGFzcyBOYXRpdmVDb25zb2xlCiAgICB7CiAgICAgICAgW0RsbEltcG9ydCgia2VybmVsMzIuZGxsIiwgU2V0TGFzdEVycm9yPXRydWUpXQogICAgICAgIHB1YmxpYyBzdGF0aWMgZXh0ZXJuIEludFB0ciBHZXRTdGRIYW5kbGUoaW50IG5TdGRIYW5kbGUpOwoKICAgICAgICBbRGxsSW1wb3J0KCJrZXJuZWwzMi5kbGwiLCBTZXRMYXN0RXJyb3I9dHJ1ZSldCiAgICAgICAgcHVibGljIHN0YXRpYyBleHRlcm4gYm9vbCBHZXRDb25zb2xlTW9kZSgKICAgICAgICAgICAgSW50UHRyIGhDb25zb2xlSGFuZGxlLAogICAgICAgICAgICBvdXQgdWludCBscE1vZGUKICAgICAgICApOwoKICAgICAgICBbRGxsSW1wb3J0KCJrZXJuZWwzMi5kbGwiLCBTZXRMYXN0RXJyb3I9dHJ1ZSldCiAgICAgICAgcHVibGljIHN0YXRpYyBleHRlcm4gYm9vbCBTZXRDb25zb2xlTW9kZSgKICAgICAgICAgICAgSW50UHRyIGhDb25zb2xlSGFuZGxlLAogICAgICAgICAgICB1aW50IGR3TW9kZQogICAgICAgICk7CgogICAgICAgIFtTdHJ1Y3RMYXlvdXQoTGF5b3V0S2luZC5TZXF1ZW50aWFsLCBDaGFyU2V0PUNoYXJTZXQuVW5pY29kZSldCiAgICAgICAgcHVibGljIHN0cnVjdCBDT09SRAogICAgICAgIHsKICAgICAgICAgICAgcHVibGljIHNob3J0IFg7CiAgICAgICAgICAgIHB1YmxpYyBzaG9ydCBZOwogICAgICAgIH0KCiAgICAgICAgW1N0cnVjdExheW91dChMYXlvdXRLaW5kLlNlcXVlbnRpYWwsIENoYXJTZXQ9Q2hhclNldC5Vbmljb2RlKV0KICAgICAgICBwdWJsaWMgc3RydWN0IENPTlNPTEVfRk9OVF9JTkZPRVgKICAgICAgICB7CiAgICAgICAgICAgIHB1YmxpYyB1aW50IGNiU2l6ZTsKICAgICAgICAgICAgcHVibGljIHVpbnQgbkZvbnQ7CiAgICAgICAgICAgIHB1YmxpYyBDT09SRCBkd0ZvbnRTaXplOwogICAgICAgICAgICBwdWJsaWMgaW50IEZvbnRGYW1pbHk7CiAgICAgICAgICAgIHB1YmxpYyBpbnQgRm9udFdlaWdodDsKCiAgICAgICAgICAgIFtNYXJzaGFsQXMoVW5tYW5hZ2VkVHlwZS5CeVZhbFRTdHIsIFNpemVDb25zdD0zMildCiAgICAgICAgICAgIHB1YmxpYyBzdHJpbmcgRmFjZU5hbWU7CiAgICAgICAgfQoKICAgICAgICBbRGxsSW1wb3J0KCJrZXJuZWwzMi5kbGwiLCBDaGFyU2V0PUNoYXJTZXQuVW5pY29kZSwgU2V0TGFzdEVycm9yPXRydWUpXQogICAgICAgIHB1YmxpYyBzdGF0aWMgZXh0ZXJuIGJvb2wgU2V0Q3VycmVudENvbnNvbGVGb250RXgoCiAgICAgICAgICAgIEludFB0ciBoQ29uc29sZU91dHB1dCwKICAgICAgICAgICAgYm9vbCBiTWF4aW11bVdpbmRvdywKICAgICAgICAgICAgcmVmIENPTlNPTEVfRk9OVF9JTkZPRVggbHBDb25zb2xlQ3VycmVudEZvbnRFeAogICAgICAgICk7CiAgICB9Cn0="))
+        Add-Type -TypeDefinition $csharp
     }
 } catch {}
 
@@ -473,14 +453,14 @@ function Draw-Box {
             $Config.Purple[2]
     }
 
-    $top    = "â•­" + ("â”€" * ($Width - 2)) + "â•®"
-    $bottom = "â•°" + ("â”€" * ($Width - 2)) + "â•¯"
+    $top    = "$($C.TL)" + ($C.H * ($Width - 2)) + "$($C.TR)"
+    $bottom = "$($C.BL)" + ($C.H * ($Width - 2)) + "$($C.BR)"
 
     Write-At $X $Y $top $BorderColor
 
     for ($i = 1; $i -lt ($Height - 1); $i++) {
-        Write-At $X ($Y + $i) "â”‚" $BorderColor
-        Write-At ($X + $Width - 1) ($Y + $i) "â”‚" $BorderColor
+        Write-At $X ($Y + $i) "$($C.V)" $BorderColor
+        Write-At ($X + $Width - 1) ($Y + $i) "$($C.V)" $BorderColor
     }
 
     Write-At $X ($Y + $Height - 1) $bottom $BorderColor
@@ -529,7 +509,7 @@ function Draw-Progress {
     )
 
     if ($filled -gt 0) {
-        $fill = "â–ˆ" * $filled
+        $fill = $C.Full * $filled
         Write-Gradient `
             ($X + 1) `
             $Y `
@@ -541,7 +521,7 @@ function Draw-Progress {
         Write-At `
             ($X + 1 + $filled) `
             $Y `
-            ("â–‘" * $empty) `
+            ($C.Light * $empty) `
             (
                 RgbEscape `
                     $Config.DarkGray[0] `
@@ -606,15 +586,19 @@ $UserName = [Environment]::UserName
 # Banner
 #endregion
 
-$Banner = @(
-"â–„â–„â–„â–„â–„â–„â–„ â–„â–„â–„â–„â–„â–„â–„ â–„     â–„ â–„â–„â–„â–„â–„â–„â–„ â–„â–„â–„â–„â–„â–„   â–„â–„â–„â–„â–„â–„â–„ â–„â–„â–„â–„â–„â–„â–„ â–„â–„â–„â–„â–„â–„â–„ â–„â–„â–„â–„â–„â–„   â–„â–„â–„â–„â–„â–„â–„"
-"â–ˆ       â–ˆ       â–ˆ â–ˆ â–„ â–ˆ â–ˆ       â–ˆ   â–„  â–ˆ â–ˆ       â–ˆ       â–ˆ       â–ˆ   â–„  â–ˆ â–ˆ       â–ˆ"
-"â–ˆ    â–„  â–ˆ   â–„   â–ˆ â–ˆâ–ˆ â–ˆâ–ˆ â–ˆ    â–„â–„â–„â–ˆ  â–ˆ â–ˆ â–ˆ â–ˆ  â–„â–„â–„â–„â–„â–ˆâ–„     â–„â–ˆ   â–„   â–ˆ  â–ˆ â–ˆ â–ˆ â–ˆ    â–„â–„â–„â–ˆ"
-"â–ˆ   â–ˆâ–„â–ˆ â–ˆ  â–ˆ â–ˆ  â–ˆ       â–ˆ   â–ˆâ–„â–„â–„â–ˆ   â–ˆâ–„â–„â–ˆâ–„â–ˆ â–ˆâ–„â–„â–„â–„â–„  â–ˆ   â–ˆ â–ˆ  â–ˆ â–ˆ  â–ˆ   â–ˆâ–„â–„â–ˆâ–„â–ˆ   â–ˆâ–„â–„â–„"
-"â–ˆ    â–„â–„â–„â–ˆ  â–ˆâ–„â–ˆ  â–ˆ       â–ˆ    â–„â–„â–„â–ˆ    â–„â–„  â–ˆâ–„â–„â–„â–„â–„  â–ˆ â–ˆ   â–ˆ â–ˆ  â–ˆâ–„â–ˆ  â–ˆ    â–„â–„  â–ˆ    â–„â–„â–„â–ˆ"
-"â–ˆ   â–ˆ   â–ˆ       â–ˆ   â–„   â–ˆ   â–ˆâ–„â–„â–„â–ˆ   â–ˆ  â–ˆ â–ˆâ–„â–„â–„â–„â–„â–ˆ â–ˆ â–ˆ   â–ˆ â–ˆ       â–ˆ   â–ˆ  â–ˆ â–ˆ   â–ˆâ–„â–„â–„"
-"â–ˆâ–„â–„â–„â–ˆ   â–ˆâ–„â–„â–„â–„â–„â–„â–„â–ˆâ–„â–„â–ˆ â–ˆâ–„â–„â–ˆâ–„â–„â–„â–„â–„â–„â–„â–ˆâ–„â–„â–„â–ˆ  â–ˆâ–„â–ˆâ–„â–„â–„â–„â–„â–„â–„â–ˆ â–ˆâ–„â–„â–„â–ˆ â–ˆâ–„â–„â–„â–„â–„â–„â–„â–ˆâ–„â–„â–„â–ˆ  â–ˆâ–„â–ˆâ–„â–„â–„â–„â–„â–„â–„â–ˆ"
+$BannerB64 = @(
+    "4paE4paE4paE4paE4paE4paE4paEIOKWhOKWhOKWhOKWhOKWhOKWhOKWhCDiloQgICAgIOKWhCDiloTiloTiloTiloTiloTiloTiloQg4paE4paE4paE4paE4paE4paEICAg4paE4paE4paE4paE4paE4paE4paEIOKWhOKWhOKWhOKWhOKWhOKWhOKWhCDiloTiloTiloTiloTiloTiloTiloQg4paE4paE4paE4paE4paE4paEICAg4paE4paE4paE4paE4paE4paE4paE"
+    "4paIICAgICAgIOKWiCAgICAgICDilogg4paIIOKWhCDilogg4paIICAgICAgIOKWiCAgIOKWhCAg4paIIOKWiCAgICAgICDiloggICAgICAg4paIICAgICAgIOKWiCAgIOKWhCAg4paIIOKWiCAgICAgICDilog="
+    "4paIICAgIOKWhCAg4paIICAg4paEICAg4paIIOKWiOKWiCDilojilogg4paIICAgIOKWhOKWhOKWhOKWiCAg4paIIOKWiCDilogg4paIICDiloTiloTiloTiloTiloTilojiloQgICAgIOKWhOKWiCAgIOKWhCAgIOKWiCAg4paIIOKWiCDilogg4paIICAgIOKWhOKWhOKWhOKWiA=="
+    "4paIICAg4paI4paE4paIIOKWiCAg4paIIOKWiCAg4paIICAgICAgIOKWiCAgIOKWiOKWhOKWhOKWhOKWiCAgIOKWiOKWhOKWhOKWiOKWhOKWiCDilojiloTiloTiloTiloTiloQgIOKWiCAgIOKWiCDiloggIOKWiCDiloggIOKWiCAgIOKWiOKWhOKWhOKWiOKWhOKWiCAgIOKWiOKWhOKWhOKWhA=="
+    "4paIICAgIOKWhOKWhOKWhOKWiCAg4paI4paE4paIICDiloggICAgICAg4paIICAgIOKWhOKWhOKWhOKWiCAgICDiloTiloQgIOKWiOKWhOKWhOKWhOKWhOKWhCAg4paIIOKWiCAgIOKWiCDiloggIOKWiOKWhOKWiCAg4paIICAgIOKWhOKWhCAg4paIICAgIOKWhOKWhOKWhOKWiA=="
+    "4paIICAg4paIICAg4paIICAgICAgIOKWiCAgIOKWhCAgIOKWiCAgIOKWiOKWhOKWhOKWhOKWiCAgIOKWiCAg4paIIOKWiOKWhOKWhOKWhOKWhOKWhOKWiCDilogg4paIICAg4paIIOKWiCAgICAgICDiloggICDiloggIOKWiCDiloggICDilojiloTiloTiloQ="
+    "4paI4paE4paE4paE4paIICAg4paI4paE4paE4paE4paE4paE4paE4paE4paI4paE4paE4paIIOKWiOKWhOKWhOKWiOKWhOKWhOKWhOKWhOKWhOKWhOKWhOKWiOKWhOKWhOKWhOKWiCAg4paI4paE4paI4paE4paE4paE4paE4paE4paE4paE4paIIOKWiOKWhOKWhOKWhOKWiCDilojiloTiloTiloTiloTiloTiloTiloTilojiloTiloTiloTiloggIOKWiOKWhOKWiOKWhOKWhOKWhOKWhOKWhOKWhOKWhOKWiA=="
 )
+
+$Banner = foreach ($line in $BannerB64) {
+    [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($line))
+}
 
 function Draw-Banner {
     param([double]$Wave = 0)
@@ -669,7 +653,7 @@ function Invoke-Boot {
         $line = $Banner[$i]
         $x = Center-X $line
 
-        $glitchChars = @("â–‘", "â–’", "â–“")
+        $glitchChars = @($C.Light, [char]0x2592, [char]0x2593)
 
         for ($g = 0; $g -lt 2; $g++) {
             $glitch = ""
@@ -854,7 +838,7 @@ function Draw-Menu {
             $bg = BgRgbEscape $rgb[0] $rgb[1] $rgb[2]
             $fg = "$e[38;2;255;255;255m"
 
-            $text = "â–¶  $item"
+            $text = "$($C.Arrow)  $item"
             $padding = $rowWidth - $text.Length
 
             if ($padding -lt 0) {
@@ -1014,7 +998,7 @@ function Confirm-Uninstall {
 
     Draw-Box $x $y $w $h $red
 
-    $title = "âš   UNINSTALL CONFIRMATION"
+    $title = "$($C.Warn)  UNINSTALL CONFIRMATION"
     $question = "Are you sure? [Y/N]"
 
     Write-At `
@@ -1077,10 +1061,7 @@ function Invoke-WorkingScreen {
         $title `
         0
 
-    $spinnerFrames = @(
-        "â ‹","â ™","â ¹","â ¸","â ¼",
-        "â ´","â ¦","â §","â ‡","â "
-    )
+    $spinnerFrames = @($C.Spinner1,$C.Spinner2,$C.Spinner3,$C.Spinner4,$C.Spinner5,$C.Spinner6,$C.Spinner7,$C.Spinner8,$C.Spinner9,$C.Spinner10)
 
     $state = @{
         Step     = "Preparing..."
@@ -1151,13 +1132,13 @@ function Invoke-WorkingScreen {
             Write-At `
                 16 `
                 $logY `
-                "âœ”" `
+                "$($C.Check)" `
                 $green
 
             Write-At `
                 19 `
                 $logY `
-                ("â†’ $Step... done") `
+                ("-> $Step... done") `
                 $green
         }
     }
@@ -1202,9 +1183,9 @@ function Show-Success {
     param([string]$Action)
 
     $text = if ($Action -eq "INSTALL") {
-        "âœ” INSTALL COMPLETE"
+        "$($C.Check) INSTALL COMPLETE"
     } else {
-        "âœ” UNINSTALL COMPLETE"
+        "$($C.Check) UNINSTALL COMPLETE"
     }
 
     $boxW = 60
@@ -1272,7 +1253,7 @@ function Show-Error {
 
         Draw-Box $x $y $boxW $boxH $red
 
-        $title = "âœ– FAILED"
+        $title = "$($C.Cross) FAILED"
 
         Write-At `
             ($x + [int](($boxW - $title.Length) / 2)) `
@@ -1286,7 +1267,7 @@ function Show-Error {
     Clear-Canvas
     Draw-Box $baseX $y $boxW $boxH $red
 
-    $title = "âœ– FAILED"
+    $title = "$($C.Cross) FAILED"
 
     Write-At `
         (Center-X $title) `
